@@ -13,43 +13,49 @@ jobs:
     env:
       DEVKITPRO: /opt/devkitpro
       DEVKITPPC: /opt/devkitpro/devkitPPC
+      DEVKITPRO_IMAGE: devkitpro/devkitppc:latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install devkitPro pacman
+      - name: Pull devkitPro toolchain image
         run: |
           set -euo pipefail
-          wget -q https://apt.devkitpro.org/install-devkitpro-pacman
-          chmod +x ./install-devkitpro-pacman
-          sudo ./install-devkitpro-pacman
+          docker pull "${DEVKITPRO_IMAGE}"
 
       - name: Install Wii toolchain and libraries
         run: |
           set -euo pipefail
-          sudo dkp-pacman -Syu --noconfirm
-          sudo dkp-pacman -S --needed --noconfirm \
-            wii-dev \
-            devkitPPC \
-            libogc \
-            libfat-ogc
+          docker run --rm \
+            -v "${PWD}:/workspace" \
+            -w /workspace \
+            "${DEVKITPRO_IMAGE}" \
+            bash -lc 'dkp-pacman -Syu --noconfirm && dkp-pacman -S --needed --noconfirm wii-dev devkitPPC libogc libfat-ogc'
 
       - name: Show toolchain information
         run: |
           set -euo pipefail
-          export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}"
           echo "DEVKITPRO=${DEVKITPRO}"
           echo "DEVKITPPC=${DEVKITPPC}"
-          echo "${DEVKITPRO}/tools/bin" >> "${GITHUB_PATH}"
-          echo "${DEVKITPPC}/bin" >> "${GITHUB_PATH}"
-          powerpc-eabi-gcc --version
-          powerpc-eabi-gcc -print-sysroot || true
+          docker run --rm \
+            -v "${PWD}:/workspace" \
+            -w /workspace \
+            -e DEVKITPRO="${DEVKITPRO}" \
+            -e DEVKITPPC="${DEVKITPPC}" \
+            "${DEVKITPRO_IMAGE}" \
+            bash -lc 'export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}" && powerpc-eabi-gcc --version && powerpc-eabi-gcc -print-sysroot || true'
 
       - name: Build Homebrew Channel package
         run: |
           set -euo pipefail
-          make hbc
+          docker run --rm \
+            -v "${PWD}:/workspace" \
+            -w /workspace \
+            -e DEVKITPRO="${DEVKITPRO}" \
+            -e DEVKITPPC="${DEVKITPPC}" \
+            "${DEVKITPRO_IMAGE}" \
+            bash -lc 'export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}" && make hbc'
 
       - name: Validate build output
         run: |

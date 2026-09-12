@@ -69,6 +69,16 @@ jobs:
           zip -r TheSpikyChannel-HBC.zip apps/the_spiky_channel
           unzip -l TheSpikyChannel-HBC.zip
 
+      - name: Create USB core ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p dist/usb/spiky/core
+          cp apps/the_spiky_channel/boot.dol dist/usb/spiky/core/boot.dol
+          cd dist/usb
+          zip -r ../../TheSpikyChannel-USB-Core.zip spiky
+          cd ../..
+          unzip -l TheSpikyChannel-USB-Core.zip
+
       - name: Upload Homebrew Channel folder
         uses: actions/upload-artifact@v4
         with:
@@ -81,4 +91,11 @@ jobs:
         with:
           name: TheSpikyChannel-HBC.zip
           path: TheSpikyChannel-HBC.zip
+          if-no-files-found: error
+
+      - name: Upload USB core ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheSpikyChannel-USB-Core.zip
+          path: TheSpikyChannel-USB-Core.zip
           if-no-files-found: error

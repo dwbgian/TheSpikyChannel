@@ -6,6 +6,7 @@ include $(DEVKITPPC)/wii_rules
 
 LIBOGC		?= $(DEVKITPRO)/libogc
 PORTLIBS	?= $(DEVKITPRO)/portlibs/ppc
+LD		:= $(CC)
 
 TARGET		:= boot
 BUILD		:= build

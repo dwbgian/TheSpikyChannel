@@ -35,8 +35,15 @@ jobs:
             "${DEVKITPRO_IMAGE}" \
             bash -lc '
               set -euo pipefail
-              dkp-pacman -Syu --noconfirm
-              dkp-pacman -S --needed --noconfirm wii-dev devkitPPC libogc libfat-ogc
+              for attempt in 1 2 3 4 5; do
+                if dkp-pacman -Sy --needed --noconfirm wii-dev devkitPPC libogc libfat-ogc; then
+                  break
+                fi
+                if [ "${attempt}" = "5" ]; then
+                  exit 1
+                fi
+                sleep 15
+              done
               export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}"
               echo "DEVKITPRO=${DEVKITPRO}"
               echo "DEVKITPPC=${DEVKITPPC}"

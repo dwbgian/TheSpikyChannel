@@ -5,7 +5,7 @@ endif
 include $(DEVKITPPC)/wii_rules
 
 LIBOGC		?= $(DEVKITPRO)/libogc
-PORTLIBS	?= $(DEVKITPRO)/portlibs/ppc
+PORTLIBS	?= $(DEVKITPRO)/portlibs/wii
 LD		:= $(CC)
 
 TARGET		:= boot
@@ -21,7 +21,7 @@ CXXFLAGS	:= $(CFLAGS)
 LDFLAGS		:= -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
 
 LIBS		:= -lfat -lwiiuse -lbte -logc -lm
-LIBDIRS		:= $(PORTLIBS) $(LIBOGC)
+LIBDIRS		:= $(PORTLIBS)
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -40,8 +40,10 @@ export OFILES	:= $(addsuffix .o,$(BINFILES)) \
 
 export INCLUDE	:= $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 		   $(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+		   -I$(LIBOGC)/include \
 		   -I$(CURDIR)/$(BUILD)
-export LIBPATHS	:= $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+export LIBPATHS	:= $(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
+		   -L$(LIBOGC)/lib/wii
 
 .PHONY: all clean run hbc
 

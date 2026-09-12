@@ -4,6 +4,9 @@ endif
 
 include $(DEVKITPPC)/wii_rules
 
+LIBOGC		?= $(DEVKITPRO)/libogc
+PORTLIBS	?= $(DEVKITPRO)/portlibs/ppc
+
 TARGET		:= boot
 BUILD		:= build
 SOURCES		:= source

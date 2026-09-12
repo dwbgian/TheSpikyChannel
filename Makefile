@@ -17,7 +17,7 @@ CXXFLAGS	:= $(CFLAGS)
 LDFLAGS		:= -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
 
 LIBS		:= -lfat -lwiiuse -lbte -logc -lm
-LIBDIRS		:= $(PORTLIBS)
+LIBDIRS		:= $(PORTLIBS) $(LIBOGC)
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -73,4 +73,3 @@ $(OUTPUT).elf: $(OFILES)
 -include $(DEPENDS)
 
 endif
-

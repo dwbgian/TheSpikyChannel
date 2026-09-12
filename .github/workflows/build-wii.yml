@@ -24,28 +24,6 @@ jobs:
           set -euo pipefail
           docker pull "${DEVKITPRO_IMAGE}"
 
-      - name: Install Wii toolchain and libraries
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "${PWD}:/workspace" \
-            -w /workspace \
-            "${DEVKITPRO_IMAGE}" \
-            bash -lc 'dkp-pacman -Syu --noconfirm && dkp-pacman -S --needed --noconfirm wii-dev devkitPPC libogc libfat-ogc'
-
-      - name: Show toolchain information
-        run: |
-          set -euo pipefail
-          echo "DEVKITPRO=${DEVKITPRO}"
-          echo "DEVKITPPC=${DEVKITPPC}"
-          docker run --rm \
-            -v "${PWD}:/workspace" \
-            -w /workspace \
-            -e DEVKITPRO="${DEVKITPRO}" \
-            -e DEVKITPPC="${DEVKITPPC}" \
-            "${DEVKITPRO_IMAGE}" \
-            bash -lc 'export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}" && powerpc-eabi-gcc --version && powerpc-eabi-gcc -print-sysroot || true'
-
       - name: Build Homebrew Channel package
         run: |
           set -euo pipefail
@@ -55,7 +33,17 @@ jobs:
             -e DEVKITPRO="${DEVKITPRO}" \
             -e DEVKITPPC="${DEVKITPPC}" \
             "${DEVKITPRO_IMAGE}" \
-            bash -lc 'export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}" && make hbc'
+            bash -lc '
+              set -euo pipefail
+              dkp-pacman -Syu --noconfirm
+              dkp-pacman -S --needed --noconfirm wii-dev devkitPPC libogc libfat-ogc
+              export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}"
+              echo "DEVKITPRO=${DEVKITPRO}"
+              echo "DEVKITPPC=${DEVKITPPC}"
+              powerpc-eabi-gcc --version
+              powerpc-eabi-gcc -print-sysroot || true
+              make hbc
+            '
 
       - name: Validate build output
         run: |

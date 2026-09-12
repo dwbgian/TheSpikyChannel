@@ -1,0 +1,6 @@
+build/
+*.elf
+*.dol
+*.map
+apps/the_spiky_channel/boot.dol
+

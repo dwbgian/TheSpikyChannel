@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>The Spiky Channel</name>
+  <coder>Spiky Channel Project</coder>
+  <version>0.1.0-dev</version>
+  <release_date>20260912000000</release_date>
+  <short_description>Development build</short_description>
+  <long_description>Phase 1 Homebrew Channel build for The Spiky Channel. Detects USB storage and exits cleanly without touching NAND, IOS, or System Menu files.</long_description>
+</app>
+

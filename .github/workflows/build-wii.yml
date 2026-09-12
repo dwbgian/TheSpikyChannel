@@ -1,0 +1,83 @@
+name: Build Wii Homebrew
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build boot.dol
+    runs-on: ubuntu-latest
+
+    env:
+      DEVKITPRO: /opt/devkitpro
+      DEVKITPPC: /opt/devkitpro/devkitPPC
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install devkitPro pacman
+        run: |
+          set -euo pipefail
+          wget -q https://apt.devkitpro.org/install-devkitpro-pacman
+          chmod +x ./install-devkitpro-pacman
+          sudo ./install-devkitpro-pacman
+
+      - name: Install Wii toolchain and libraries
+        run: |
+          set -euo pipefail
+          sudo dkp-pacman -Syu --noconfirm
+          sudo dkp-pacman -S --needed --noconfirm \
+            wii-dev \
+            devkitPPC \
+            libogc \
+            libfat-ogc
+
+      - name: Show toolchain information
+        run: |
+          set -euo pipefail
+          export PATH="${DEVKITPRO}/tools/bin:${DEVKITPPC}/bin:${PATH}"
+          echo "DEVKITPRO=${DEVKITPRO}"
+          echo "DEVKITPPC=${DEVKITPPC}"
+          echo "${DEVKITPRO}/tools/bin" >> "${GITHUB_PATH}"
+          echo "${DEVKITPPC}/bin" >> "${GITHUB_PATH}"
+          powerpc-eabi-gcc --version
+          powerpc-eabi-gcc -print-sysroot || true
+
+      - name: Build Homebrew Channel package
+        run: |
+          set -euo pipefail
+          make hbc
+
+      - name: Validate build output
+        run: |
+          set -euo pipefail
+          test -f apps/the_spiky_channel/boot.dol
+          test -f apps/the_spiky_channel/meta.xml
+          ls -lah apps/the_spiky_channel
+          wc -c apps/the_spiky_channel/boot.dol
+          sha256sum apps/the_spiky_channel/boot.dol
+
+      - name: Create Homebrew Channel ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p dist/hbc/apps
+          cp -R apps/the_spiky_channel dist/hbc/apps/
+          zip -r TheSpikyChannel-HBC.zip apps/the_spiky_channel
+          unzip -l TheSpikyChannel-HBC.zip
+
+      - name: Upload Homebrew Channel folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: the-spiky-channel-hbc
+          path: dist/hbc/
+          if-no-files-found: error
+
+      - name: Upload Homebrew Channel ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheSpikyChannel-HBC.zip
+          path: TheSpikyChannel-HBC.zip
+          if-no-files-found: error

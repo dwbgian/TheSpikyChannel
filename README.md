@@ -2,8 +2,9 @@
 
 Public Wii homebrew side project.
 
-Phase 1 is a normal Homebrew Channel application. It does not install a
-channel, write to NAND, patch IOS, or modify the Wii System Menu.
+Phase 1 is split into a tiny Homebrew Channel forwarder and a larger USB core.
+It does not install a channel, write to NAND, patch IOS, or modify the Wii
+System Menu.
 
 ## Phase 1 Goal
 
@@ -33,8 +34,25 @@ TheSpikyChannel/
     └── wad-analysis.md
 ```
 
-After a successful build, copy `boot.dol` into
-`apps/the_spiky_channel/boot.dol` for Homebrew Channel testing.
+After a successful build:
+
+- `forwarder/apps/the_spiky_channel/boot.dol` is the small Homebrew Channel
+  loader.
+- `boot.dol` at the repository root is the Spiky core and belongs at
+  `USB:/spiky/core/boot.dol`.
+
+The intended test USB layout is:
+
+```text
+USB:/
+├── apps/
+│   └── the_spiky_channel/
+│       ├── boot.dol
+│       └── meta.xml
+└── spiky/
+    └── core/
+        └── boot.dol
+```
 
 ## Build Requirements
 
@@ -61,4 +79,3 @@ until the Wii toolchain is installed.
 - Do not modify IOS or the System Menu.
 - Test forwarder and WAD work in Dolphin before real hardware.
 - Keep USB functionality separate from future NAND/channel packaging.
-

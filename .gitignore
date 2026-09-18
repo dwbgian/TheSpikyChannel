@@ -1,6 +1,10 @@
+.DS_Store
+wad-unpacked/
 build/
+forwarder/build/
 *.elf
 *.dol
 *.map
 apps/the_spiky_channel/boot.dol
-
+forwarder/apps/the_spiky_channel/boot.dol
+forwarder/apps/the_spiky_channel/meta.xml

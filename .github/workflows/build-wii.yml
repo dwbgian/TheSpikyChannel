@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build boot.dol
+    name: Build core and forwarder
     runs-on: ubuntu-latest
 
     env:
@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           docker pull "${DEVKITPRO_IMAGE}"
 
-      - name: Build Homebrew Channel package
+      - name: Build Spiky core and forwarder
         run: |
           set -euo pipefail
           docker run --rm \
@@ -49,31 +49,39 @@ jobs:
               echo "DEVKITPPC=${DEVKITPPC}"
               powerpc-eabi-gcc --version
               powerpc-eabi-gcc -print-sysroot || true
-              make hbc
+              make
+              make -C forwarder hbc
             '
 
       - name: Validate build output
         run: |
           set -euo pipefail
-          test -f apps/the_spiky_channel/boot.dol
-          test -f apps/the_spiky_channel/meta.xml
-          ls -lah apps/the_spiky_channel
-          wc -c apps/the_spiky_channel/boot.dol
-          sha256sum apps/the_spiky_channel/boot.dol
+          test -f boot.dol
+          test -f forwarder/apps/the_spiky_channel/boot.dol
+          test -f forwarder/apps/the_spiky_channel/meta.xml
+          echo "Spiky core:"
+          wc -c boot.dol
+          sha256sum boot.dol
+          echo "Spiky forwarder:"
+          ls -lah forwarder/apps/the_spiky_channel
+          wc -c forwarder/apps/the_spiky_channel/boot.dol
+          sha256sum forwarder/apps/the_spiky_channel/boot.dol
 
       - name: Create Homebrew Channel ZIP
         run: |
           set -euo pipefail
           mkdir -p dist/hbc/apps
-          cp -R apps/the_spiky_channel dist/hbc/apps/
-          zip -r TheSpikyChannel-HBC.zip apps/the_spiky_channel
+          cp -R forwarder/apps/the_spiky_channel dist/hbc/apps/
+          cd dist/hbc
+          zip -r ../../TheSpikyChannel-HBC.zip apps/the_spiky_channel
+          cd ../..
           unzip -l TheSpikyChannel-HBC.zip
 
       - name: Create USB core ZIP
         run: |
           set -euo pipefail
           mkdir -p dist/usb/spiky/core
-          cp apps/the_spiky_channel/boot.dol dist/usb/spiky/core/boot.dol
+          cp boot.dol dist/usb/spiky/core/boot.dol
           cd dist/usb
           zip -r ../../TheSpikyChannel-USB-Core.zip spiky
           cd ../..

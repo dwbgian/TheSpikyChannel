@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <string.h>
 #include <wiiuse/wpad.h>
 
@@ -213,4 +214,3 @@ int main(int argc, char **argv)
     entry();
     return 0;
 }
-

@@ -88,6 +88,20 @@ jobs:
           cd ../..
           unzip -l TheSpikyChannel-USB-Core.zip
 
+      - name: Create direct Homebrew Channel test ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p dist/direct-hbc/apps/the_spiky_channel
+          cp boot.dol dist/direct-hbc/apps/the_spiky_channel/boot.dol
+          cp apps/the_spiky_channel/meta.xml dist/direct-hbc/apps/the_spiky_channel/meta.xml
+          if [ -f apps/the_spiky_channel/icon.png ]; then
+            cp apps/the_spiky_channel/icon.png dist/direct-hbc/apps/the_spiky_channel/icon.png
+          fi
+          cd dist/direct-hbc
+          zip -r ../../TheSpikyChannel-Direct-HBC-Test.zip apps/the_spiky_channel
+          cd ../..
+          unzip -l TheSpikyChannel-Direct-HBC-Test.zip
+
       - name: Upload Homebrew Channel folder
         uses: actions/upload-artifact@v4
         with:
@@ -107,4 +121,11 @@ jobs:
         with:
           name: TheSpikyChannel-USB-Core.zip
           path: TheSpikyChannel-USB-Core.zip
+          if-no-files-found: error
+
+      - name: Upload direct Homebrew Channel test ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheSpikyChannel-Direct-HBC-Test.zip
+          path: TheSpikyChannel-Direct-HBC-Test.zip
           if-no-files-found: error

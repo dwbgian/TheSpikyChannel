@@ -1,99 +1,232 @@
+#include "app_state.h"
+#include "input.h"
+#include "storage.h"
+#include "ui.h"
+
 #include <gccore.h>
-#include <fat.h>
-#include <ogc/usbstorage.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <wiiuse/wpad.h>
 
-#include "ui_background.h"
-
-static void *xfb = NULL;
-static GXRModeObj *rmode = NULL;
-
-static void init_video(void)
+static void set_status(AppState *app, const char *message)
 {
-    VIDEO_Init();
-    WPAD_Init();
+    snprintf(app->status_line, sizeof(app->status_line), "%s", message);
+}
 
-    rmode = VIDEO_GetPreferredMode(NULL);
-    xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+static void clamp_app_selection(AppState *app, const HomebrewList *apps)
+{
+    if (apps->count == 0) {
+        app->app_selected = 0;
+        app->app_scroll = 0;
+        return;
+    }
 
-    VIDEO_Configure(rmode);
-    VIDEO_SetNextFramebuffer(xfb);
-    VIDEO_SetBlack(FALSE);
-    VIDEO_Flush();
-    VIDEO_WaitVSync();
+    if (app->app_selected >= apps->count) {
+        app->app_selected = apps->count - 1;
+    }
 
-    if (rmode->viTVMode & VI_NON_INTERLACE) {
-        VIDEO_WaitVSync();
+    if (app->app_scroll > app->app_selected) {
+        app->app_scroll = app->app_selected;
+    }
+
+    while (app->app_selected >= app->app_scroll + SPIKY_APP_PAGE_SIZE) {
+        app->app_scroll++;
     }
 }
 
-static bool detect_usb(void)
+static void refresh_storage(AppState *app, StorageState *storage, HomebrewList *apps)
 {
-    bool connected = false;
+    storage_refresh(storage, apps);
+    clamp_app_selection(app, apps);
 
-    if (fatMountSimple("usb", &__io_usbstorage)) {
-        FILE *probe = fopen("usb:/", "r");
-        connected = true;
+    if (storage->usb_mounted || storage->sd_mounted) {
+        set_status(app, "Storage refreshed. USB/SD scan complete.");
+    } else {
+        set_status(app, "No USB or SD storage mounted.");
+    }
+}
 
-        if (probe != NULL) {
-            fclose(probe);
+static void move_home(AppState *app, s32 delta)
+{
+    s32 selected = (s32)app->home_selected + delta;
+
+    if (selected < 0) {
+        selected = SCREEN_COUNT - 1;
+    }
+
+    if (selected >= SCREEN_COUNT) {
+        selected = 0;
+    }
+
+    app->home_selected = (u32)selected;
+}
+
+static void handle_home(AppState *app, const InputState *input)
+{
+    int pointer_hit;
+
+    if (input->pressed & WPAD_BUTTON_RIGHT) {
+        move_home(app, 1);
+    }
+
+    if (input->pressed & WPAD_BUTTON_LEFT) {
+        move_home(app, -1);
+    }
+
+    if (input->pressed & WPAD_BUTTON_DOWN) {
+        move_home(app, 4);
+    }
+
+    if (input->pressed & WPAD_BUTTON_UP) {
+        move_home(app, -4);
+    }
+
+    if (input->pointer_valid) {
+        pointer_hit = ui_home_hit_test(input->pointer_x, input->pointer_y);
+        if (pointer_hit >= 0) {
+            app->home_selected = (u32)pointer_hit;
+        }
+    }
+
+    if (input->pressed & WPAD_BUTTON_A) {
+        app->screen = (SpikyScreen)app->home_selected;
+        if (app->screen == SCREEN_HOME) {
+            set_status(app, "Already on the Spiky dashboard.");
+        } else if (app->screen == SCREEN_APPS) {
+            set_status(app, "Apps are listed only. Launching is disabled in this build.");
+        } else if (app->screen == SCREEN_STORAGE) {
+            set_status(app, "Storage tools are USB-only and never touch NAND.");
+        } else {
+            set_status(app, "Feature area prepared. Network actions are coming soon.");
+        }
+    }
+}
+
+static void handle_apps(AppState *app, const InputState *input, const HomebrewList *apps)
+{
+    if (apps->count > 0) {
+        if ((input->pressed & WPAD_BUTTON_DOWN) && app->app_selected + 1 < apps->count) {
+            app->app_selected++;
         }
 
-        fatUnmount("usb:/");
+        if ((input->pressed & WPAD_BUTTON_UP) && app->app_selected > 0) {
+            app->app_selected--;
+        }
+
+        if (input->pressed & WPAD_BUTTON_PLUS) {
+            if (app->app_selected + SPIKY_APP_PAGE_SIZE < apps->count) {
+                app->app_selected += SPIKY_APP_PAGE_SIZE;
+            } else {
+                app->app_selected = apps->count - 1;
+            }
+        }
+
+        if (input->pressed & WPAD_BUTTON_MINUS) {
+            if (app->app_selected > SPIKY_APP_PAGE_SIZE) {
+                app->app_selected -= SPIKY_APP_PAGE_SIZE;
+            } else {
+                app->app_selected = 0;
+            }
+        }
     }
 
-    return connected;
+    if (input->pressed & WPAD_BUTTON_A) {
+        set_status(app, "App launch is intentionally disabled until the loader is stable.");
+    }
+
+    clamp_app_selection(app, apps);
 }
 
-static void draw_screen(bool usb_connected)
+static void handle_storage(AppState *app, const InputState *input,
+                           StorageState *storage, HomebrewList *apps)
 {
-    const u32 *src = usb_connected ? spiky_ui_connected : spiky_ui_disconnected;
-    u32 *dst = (u32 *)xfb;
-    u32 dst_words_per_row = rmode->fbWidth / 2;
-    u32 copy_words_per_row = SPIKY_UI_WIDTH / 2;
-    u32 rows = rmode->xfbHeight < SPIKY_UI_HEIGHT ? rmode->xfbHeight : SPIKY_UI_HEIGHT;
+    if (input->pressed & WPAD_BUTTON_A) {
+        if (storage_create_usb_spiky_folders(storage)) {
+            storage_refresh(storage, apps);
+            set_status(app, "Created/verified USB:/spiky folders.");
+        } else {
+            storage_refresh(storage, apps);
+            set_status(app, "Could not create USB:/spiky folders. Is USB mounted?");
+        }
+    }
+}
 
-    for (u32 y = 0; y < rows; y++) {
-        memcpy(dst + y * dst_words_per_row,
-               src + y * copy_words_per_row,
-               copy_words_per_row * sizeof(u32));
+static void handle_screen(AppState *app, const InputState *input,
+                          StorageState *storage, HomebrewList *apps)
+{
+    if (input->pressed & WPAD_BUTTON_HOME) {
+        app->running = false;
+        return;
     }
 
-    DCFlushRange(xfb, rmode->fbWidth * rmode->xfbHeight * VI_DISPLAY_PIX_SZ);
-    VIDEO_SetNextFramebuffer(xfb);
-    VIDEO_Flush();
-    VIDEO_WaitVSync();
+    if (input->pressed & WPAD_BUTTON_B) {
+        app->screen = SCREEN_HOME;
+        set_status(app, "Back to dashboard.");
+        return;
+    }
+
+    if (input->pressed & WPAD_BUTTON_1) {
+        refresh_storage(app, storage, apps);
+    }
+
+    switch (app->screen) {
+        case SCREEN_HOME:
+            handle_home(app, input);
+            break;
+        case SCREEN_APPS:
+            handle_apps(app, input, apps);
+            break;
+        case SCREEN_STORAGE:
+            handle_storage(app, input, storage, apps);
+            break;
+        case SCREEN_DOWNLOADS:
+        case SCREEN_UPDATES:
+        case SCREEN_ACCOUNT:
+        case SCREEN_PAIRING:
+        case SCREEN_SETTINGS:
+        default:
+            if (input->pressed & WPAD_BUTTON_A) {
+                set_status(app, "Prepared area only. No network or system changes run.");
+            }
+            break;
+    }
 }
 
 int main(int argc, char **argv)
 {
+    AppState app;
+    StorageState storage;
+    HomebrewList apps;
+    InputState input;
+
     (void)argc;
     (void)argv;
 
-    init_video();
+    memset(&app, 0, sizeof(app));
+    memset(&storage, 0, sizeof(storage));
+    memset(&apps, 0, sizeof(apps));
 
-    bool usb_connected = detect_usb();
+    app.screen = SCREEN_HOME;
+    app.home_selected = SCREEN_APPS;
+    app.running = true;
 
-    while (true) {
-        draw_screen(usb_connected);
+    if (!ui_init()) {
+        return 1;
+    }
 
-        WPAD_ScanPads();
-        u32 pressed = WPAD_ButtonsDown(0);
+    input_init(VIDEO_GetPreferredMode(NULL));
+    refresh_storage(&app, &storage, &apps);
 
-        if (pressed & WPAD_BUTTON_HOME) {
-            break;
-        }
-
-        if (pressed & WPAD_BUTTON_A) {
-            usb_connected = detect_usb();
-        }
-
+    while (app.running) {
+        input_poll(&input);
+        handle_screen(&app, &input, &storage, &apps);
+        ui_draw(&app, &storage, &apps, &input);
         VIDEO_WaitVSync();
     }
 
+    storage_shutdown(&storage);
     WPAD_Shutdown();
+    ui_shutdown();
+
     return 0;
 }

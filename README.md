@@ -6,6 +6,10 @@ Phase 1 is split into a tiny Homebrew Channel forwarder and a larger USB core.
 It does not install a channel, write to NAND, patch IOS, or modify the Wii
 System Menu.
 
+The current core is a USB-only dashboard build. It shows local Spiky system
+areas, scans USB/SD homebrew folders, and keeps future network/account/update
+features visible as prepared "coming soon" screens.
+
 ## Phase 1 Goal
 
 Build and run a small Wii homebrew app that shows:
@@ -19,6 +23,17 @@ USB: Connected / Not Connected
 A = Continue
 HOME = Exit
 ```
+
+The expanded dashboard build adds:
+
+- Home, Apps, Downloads, Updates, Account, Pairing, Settings, and Storage
+  screens.
+- D-Pad navigation, pointer tile selection, `A` to open/activate, `B` to go
+  back, `HOME` to exit, and `+/-` list paging.
+- USB and SD scanning for `apps/` and `spiky/apps/`.
+- App listing only. Launching other `.dol` files is intentionally disabled
+  until the loader path is stable on real hardware.
+- No NAND, WAD, IOS, or System Menu operations.
 
 ## Layout
 
@@ -53,6 +68,19 @@ USB:/
     └── core/
         └── boot.dol
 ```
+
+For real-hardware testing while the forwarder loader is still being hardened,
+the CI also produces a direct Homebrew Channel package:
+
+```text
+USB:/
+└── apps/
+    └── the_spiky_channel/
+        ├── boot.dol
+        └── meta.xml
+```
+
+In that package, `boot.dol` is the Spiky core itself.
 
 ## Build Requirements
 
